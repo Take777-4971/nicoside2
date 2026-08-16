@@ -3,5 +3,5 @@ requests>=2.31.0
 google-auth>=2.29.0
 google-auth-oauthlib>=1.2.0
 
-# Windowsバイナリの作成
-# pyinstaller --noconsole --onefile --add-data "ui;ui" main.py
+# Windows専用（Windowsで実行する場合のみ追加でインストール）
+# pip install pythonnet pywin32 comtypes

@@ -13,6 +13,20 @@
 </head>
 <body>
   <div id="app">
+    <!-- frameless=True によりOSネイティブのタイトルバーが無くなったため、
+         代わりの独自タイトルバー。背景部分（.pywebview-drag-region）を
+         ドラッグするとウィンドウを移動できる。ボタン自体はドラッグ領域の
+         外に置き、通常のクリックとして扱われるようにする。 -->
+    <div id="title-bar">
+      <div id="title-bar-drag" class="pywebview-drag-region">
+        <span id="title-bar-label">NicoSide</span>
+      </div>
+      <div id="title-bar-buttons">
+        <button id="minimize-btn" class="title-bar-btn" title="最小化">─</button>
+        <button id="close-btn" class="title-bar-btn title-bar-btn-close" title="閉じる">✕</button>
+      </div>
+    </div>
+
     <div class="row">
       <input id="search-input" type="text" placeholder="検索キーワード" />
       <button id="search-btn" class="icon-btn" title="検索">🔍</button>
@@ -99,7 +113,7 @@
       </div>
     </div>
 
-    <hr />
+    <hr class="pywebview-drag-region" />
 
     <div id="player-container">
       <span id="player-placeholder">動画を選択して再生</span>
@@ -111,7 +125,7 @@
       <a href="#" id="nico-watch-external-link">埋め込みで再生できない場合はこちら → ブラウザでニコニコ動画を開く</a>
     </div>
 
-    <hr />
+    <hr class="pywebview-drag-region" />
 
     <div id="results-list"></div>
 

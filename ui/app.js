@@ -647,9 +647,20 @@ async function playViaNicoScriptEmbed(videoId) {
   mount.innerHTML = "";
   placeholder.style.display = "none";
 
+  // 埋め込み用の共有ダイアログが生成するscriptタグのURL
+  // (https://embed.nicovideo.jp/watch/{id}/script?w=幅&h=高さ) には
+  // w/h（表示サイズ）パラメータがあり、プレーヤー側の初期画質判定に
+  // 使われている可能性が高いことが実機検証で判明した。
+  // 実際のプレーヤー表示エリアの現在のサイズを渡す方式も試したが、
+  // 常に高画質で読み込ませたいとのことなので、固定で大きめの値
+  // （720x480）を指定する。iframe自体はCSSでコンテナに合わせて
+  // 表示サイズが調整されるため、この値はあくまで画質判定用。
+  const w = 720;
+  const h = 480;
+
   const embedUrl =
     `https://embed.nicovideo.jp/watch/${videoId}` +
-    `?persistence=1&oldScript=1&from=0&allowProgrammaticFullScreen=1`;
+    `?persistence=1&oldScript=1&from=0&allowProgrammaticFullScreen=1&w=${w}&h=${h}`;
 
   window.pywebview.api.debug_log("playViaNicoScriptEmbed: nico embedUrl=" + embedUrl);
 
@@ -896,6 +907,15 @@ waitForPywebview(async () => {
   updateCommentUI();
   await loadProviders();
   await onProviderChanged();
+
+  document.getElementById("minimize-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    window.pywebview.api.minimize_window();
+  });
+  document.getElementById("close-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    window.pywebview.api.close_window();
+  });
 
   document.getElementById("search-btn").addEventListener("click", performSearch);
   document.getElementById("search-input").addEventListener("keydown", (e) => {

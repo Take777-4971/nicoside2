@@ -33,16 +33,37 @@ def main():
         resizable=True,
         on_top=True,
         background_color="#121212",
+        # frameless=True: OSネイティブのタイトルバー（アイコン・最小化/
+        # 最大化/閉じるボタン）を取り除く。ガジェットらしい見た目にする
+        # ための変更。代わりにHTML側（ui/index.html の #title-bar）へ
+        # 独自の最小化・閉じるボタンとドラッグ用の領域を用意している。
+        #
+        # easy_drag=False: pywebviewの easy_drag=True は、frameless時に
+        # ウィンドウ全体（あらゆるmousedown）をドラッグ起点にしてしまい、
+        # 検索ボックスやドロップダウン、各種ボタンなど普段のUI操作と
+        # 衝突してしまうことが実装調査で判明した。そのため無効化し、
+        # 代わりに `.pywebview-drag-region` というCSSクラスを付けた
+        # 要素（独自タイトルバーなど）だけがドラッグでウィンドウを
+        # 動かせるようにしている（この仕組み自体はpywebview標準機能）。
+        frameless=True,
+        easy_drag=False,
     )
-    # ウィンドウ表示後、x1（ディスプレイ端に収まるガジェットサイズ）に調整する。
+    # ウィンドウ表示後、前回終了時の位置・サイズがあれば復元し、
+    # 無ければ既定サイズ（x1、ディスプレイ端）を適用する。
     # イベントハンドラの戻り値はpywebview内部でset()に格納されるため、
     # ハッシュ不可能な値（dict等）を返すとエラーになる。
-    # select_window_size()はdictを返すため、直接コールバックにせず
+    # select_window_size()等はdictを返すため、直接コールバックにせず
     # 戻り値を破棄するラッパー関数を使う。
     def _apply_initial_size():
-        api.select_window_size(1)
+        api.apply_initial_window_state()
 
     window.events.shown += _apply_initial_size
+
+    # ウィンドウが閉じられる直前に、位置・サイズを保存する
+    def _save_state_on_close():
+        api.save_window_state_on_close()
+
+    window.events.closing += _save_state_on_close
 
     # ウィンドウをドラッグして画面端に近づけたときのスナップ処理
     window.events.moved += api.handle_window_moved

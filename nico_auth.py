@@ -32,7 +32,7 @@ import os
 
 from paths import app_data_dir
 
-PERSIST_SESSION_FOR_DEV = True
+PERSIST_SESSION_FOR_DEV = False
 
 _SESSION_FILE_PATH = os.path.join(app_data_dir(), "nico_session_dev.json")
 

@@ -52,3 +52,47 @@ def load_youtube_channel_id():
             return None
 
     return None
+
+
+def save_window_state(x: int, y: int, size_index: int):
+    """
+    前回終了時のウィンドウ位置・サイズを保存する。
+    x, y: ウィンドウ左上のディスプレイ絶対座標
+    size_index: SIZE_MULTIPLIERS（api.py）のインデックス（0=x1, 1=x2, 2=x3）
+    """
+    data = {}
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+    data["window_state"] = {"x": int(x), "y": int(y), "size_index": int(size_index)}
+    try:
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def load_window_state():
+    """
+    保存済みのウィンドウ位置・サイズを返す。
+    戻り値: {"x":int, "y":int, "size_index":int} または、保存が無い/壊れて
+    いる場合は None（呼び出し側はデフォルトのサイズ・位置を使う）。
+    """
+    if not os.path.exists(CONFIG_PATH):
+        return None
+    try:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        state = data.get("window_state")
+        if not isinstance(state, dict):
+            return None
+        return {
+            "x": int(state["x"]),
+            "y": int(state["y"]),
+            "size_index": int(state["size_index"]),
+        }
+    except Exception:
+        return None

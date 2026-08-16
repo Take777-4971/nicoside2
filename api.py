@@ -3,8 +3,10 @@ JavaScript <-> Python ブリッジ。
 pywebview の js_api として登録し、UI(JS)側から
 window.pywebview.api.<メソッド名>(...) の形で呼び出す。
 """
+import ctypes
 import logging
 import os
+import sys
 import threading
 import time
 import webbrowser
@@ -12,6 +14,7 @@ import webbrowser
 import webview
 
 import auth
+import config
 import nico_auth
 from paths import app_data_dir
 from providers.niconico import NiconicoProvider
@@ -116,6 +119,77 @@ def _extract_cookie_value(cookies, name: str, debug_log_names: bool = False):
         return None
     if debug_log_names:
         _debug_logger.debug("_extract_cookie_value: cookie names found=%s", found_names)
+    return None
+
+
+def _get_work_area_for_screen(screen):
+    """
+    Windows専用: 指定した screen（pywebviewのScreenオブジェクト、
+    モニタ全体の座標・サイズ）に対応するモニタの「作業領域」
+    （タスクバー等を除いた、実際にウィンドウを最大化したときに使われる
+    範囲）を返す。
+
+    pywebviewのScreenオブジェクトはモニタ全体の解像度しか持っておらず、
+    タスクバーの位置・高さの情報が無いため、Win32 API
+    （EnumDisplayMonitors + GetMonitorInfoW）を直接呼び出して取得する。
+
+    戻り値: {"x":int, "y":int, "width":int, "height":int} または、
+    Windows以外・取得失敗時は None（呼び出し側は screen そのものへ
+    フォールバックする）。
+    """
+    if sys.platform != "win32" or screen is None:
+        return None
+    try:
+        import ctypes.wintypes as wintypes
+
+        user32 = ctypes.windll.user32
+
+        class RECT(ctypes.Structure):
+            _fields_ = [
+                ("left", ctypes.c_long),
+                ("top", ctypes.c_long),
+                ("right", ctypes.c_long),
+                ("bottom", ctypes.c_long),
+            ]
+
+        class MONITORINFO(ctypes.Structure):
+            _fields_ = [
+                ("cbSize", wintypes.DWORD),
+                ("rcMonitor", RECT),
+                ("rcWork", RECT),
+                ("dwFlags", wintypes.DWORD),
+            ]
+
+        MonitorEnumProc = ctypes.WINFUNCTYPE(
+            ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(RECT), ctypes.c_double
+        )
+
+        monitors = []
+
+        def _callback(hMonitor, hdcMonitor, lprcMonitor, dwData):
+            monitors.append(hMonitor)
+            return 1
+
+        user32.EnumDisplayMonitors(0, 0, MonitorEnumProc(_callback), 0)
+
+        for hmonitor in monitors:
+            info = MONITORINFO()
+            info.cbSize = ctypes.sizeof(MONITORINFO)
+            if not user32.GetMonitorInfoW(hmonitor, ctypes.byref(info)):
+                continue
+            mx, my = info.rcMonitor.left, info.rcMonitor.top
+            mw = info.rcMonitor.right - info.rcMonitor.left
+            mh = info.rcMonitor.bottom - info.rcMonitor.top
+            # pywebviewのscreenと同じモニタかどうかを座標・サイズで照合する
+            if mx == int(screen.x) and my == int(screen.y) and mw == int(screen.width) and mh == int(screen.height):
+                return {
+                    "x": info.rcWork.left,
+                    "y": info.rcWork.top,
+                    "width": info.rcWork.right - info.rcWork.left,
+                    "height": info.rcWork.bottom - info.rcWork.top,
+                }
+    except Exception as exc:
+        _debug_logger.debug("_get_work_area_for_screen: raised %r", exc)
     return None
 
 
@@ -396,6 +470,26 @@ class Api:
         webbrowser.open(url)
         return True
 
+    def minimize_window(self):
+        """frameless化に伴い無くなったOSネイティブの最小化ボタンの代替"""
+        try:
+            webview.windows[0].minimize()
+        except Exception as exc:
+            _debug_logger.debug("minimize_window: raised %r", exc)
+        return True
+
+    def close_window(self):
+        """frameless化に伴い無くなったOSネイティブの閉じるボタンの代替"""
+        try:
+            self.save_window_state_on_close()
+        except Exception as exc:
+            _debug_logger.debug("close_window: save_window_state_on_close raised %r", exc)
+        try:
+            webview.windows[0].destroy()
+        except Exception as exc:
+            _debug_logger.debug("close_window: raised %r", exc)
+        return True
+
     def debug_log(self, message: str):
         """
         JS側から nicoside_debug.log に書き込むための橋渡し。
@@ -627,7 +721,10 @@ class Api:
             anchor_left = window_center_x <= screen_center_x
             anchor_x = screen.x
             anchor_right = screen.x + screen.width
-            anchor_y = screen.y
+            # タスクバー等を除いた作業領域が取得できれば、そちらのy座標を
+            # 使う（select_window_size / handle_window_moved と一貫させる）
+            work_area = _get_work_area_for_screen(screen)
+            anchor_y = work_area["y"] if work_area else screen.y
 
         self._collapsed_anchor_left = anchor_left
         self._collapsed_anchor_x = anchor_x
@@ -800,6 +897,79 @@ class Api:
         self._size_index = (self._size_index + 1) % len(SIZE_MULTIPLIERS)
         return self.select_window_size(SIZE_MULTIPLIERS[self._size_index])
 
+    def apply_initial_window_state(self):
+        """
+        アプリ起動直後に一度だけ呼ぶ。前回終了時に保存された位置・
+        サイズがあればそれを復元し、無ければ従来通りの既定サイズ(x1)を
+        画面端に適用する。
+
+        保存された座標が、現在つないでいるディスプレイ構成では
+        画面外にはみ出してしまう場合（保存後にモニタ構成を変えた等）は、
+        安全のため既定サイズにフォールバックする。
+        """
+        saved = config.load_window_state()
+        if not saved:
+            self.select_window_size(1)
+            return
+
+        size_index = saved["size_index"]
+        if size_index < 0 or size_index >= len(SIZE_MULTIPLIERS):
+            size_index = 0
+        multiplier = SIZE_MULTIPLIERS[size_index]
+        width = BASE_WIDTH * multiplier
+        x, y = saved["x"], saved["y"]
+
+        # 保存された座標が、いま実際に繋がっているどれかのディスプレイの
+        # 範囲内に収まっているかを確認する
+        try:
+            screens = webview.screens
+        except Exception:
+            screens = []
+        fits = any(
+            s.x <= x < s.x + s.width and s.y <= y < s.y + s.height
+            for s in (screens or [])
+        )
+        if not fits:
+            _debug_logger.debug("apply_initial_window_state: saved position out of bounds, using default")
+            self.select_window_size(1)
+            return
+
+        window = webview.windows[0]
+        # 高さは、保存後にモニタの解像度・タスクバー状況が変わっている
+        # 可能性があるため、保存値をそのまま使わず、現在の作業領域から
+        # 都度計算し直す（select_window_sizeと同じロジックを使うため、
+        # 一度そちらを呼んでから、幅とx座標だけ保存値で上書きする）
+        self.select_window_size(multiplier)
+        try:
+            window.move(int(x), int(y))
+        except Exception as exc:
+            _debug_logger.debug("apply_initial_window_state: move raised %r", exc)
+        self._size_index = size_index
+        _debug_logger.debug("apply_initial_window_state: restored x=%s y=%s size_index=%s", x, y, size_index)
+
+    def save_window_state_on_close(self):
+        """
+        ウィンドウが閉じられる直前（events.closing）に呼ぶ。
+        現在の位置・サイズ設定を保存する。
+
+        「自動的に隠す」で畳んだ状態のまま終了した場合は、畳んだ後の
+        細い幅ではなく、展開時の幅・位置を保存する（次回起動時に
+        畳まれた状態のままにはしたくないため）。
+        """
+        try:
+            window = webview.windows[0]
+            x, y = window.x, window.y
+            if self._is_collapsed:
+                # 畳んだ状態のx座標は片側が画面外相当になっているため、
+                # 展開時のアンカー位置を代わりに使う
+                x = self._collapsed_anchor_x if self._collapsed_anchor_left else (
+                    self._collapsed_anchor_right - (self._expanded_width or window.width)
+                )
+                y = self._collapsed_anchor_y
+            config.save_window_state(x, y, self._size_index)
+        except Exception as exc:
+            _debug_logger.debug("save_window_state_on_close: raised %r", exc)
+
     def select_window_size(self, multiplier):
         """
         指定した倍率(1/2/3)へウィンドウサイズを直接切り替える。
@@ -833,18 +1003,27 @@ class Api:
             new_height = window.height
             new_x, new_y = window.x, window.y
         else:
-            new_width = min(desired_width, screen.width)
-            new_height = screen.height
-            new_y = screen.y
+            # タスクバー等を除いた作業領域が取得できれば、ステータスバーが
+            # 隠れないようそちらを基準にする（Windows以外や取得失敗時は
+            # モニタ全体を使う、これまで通りの挙動にフォールバックする）
+            work_area = _get_work_area_for_screen(screen)
+            area_x = work_area["x"] if work_area else screen.x
+            area_y = work_area["y"] if work_area else screen.y
+            area_width = work_area["width"] if work_area else screen.width
+            area_height = work_area["height"] if work_area else screen.height
+
+            new_width = min(desired_width, area_width)
+            new_height = area_height
+            new_y = area_y
 
             window_center_x = window.x + window.width / 2
             screen_center_x = screen.x + screen.width / 2
             anchor_left = window_center_x <= screen_center_x
 
             if anchor_left:
-                new_x = screen.x
+                new_x = area_x
             else:
-                new_x = screen.x + screen.width - new_width
+                new_x = area_x + area_width - new_width
 
         done = threading.Event()
 
@@ -917,23 +1096,30 @@ class Api:
             width = window.width
             height = window.height
 
+            # タスクバー等を除いた作業領域があればそちらを基準にスナップする
+            work_area = _get_work_area_for_screen(screen)
+            area_x = work_area["x"] if work_area else screen.x
+            area_y = work_area["y"] if work_area else screen.y
+            area_width = work_area["width"] if work_area else screen.width
+            area_height = work_area["height"] if work_area else screen.height
+
             target_x = x
-            left_dist = abs(x - screen.x)
-            right_dist = abs((x + width) - (screen.x + screen.width))
+            left_dist = abs(x - area_x)
+            right_dist = abs((x + width) - (area_x + area_width))
             if left_dist <= SNAP_THRESHOLD or right_dist <= SNAP_THRESHOLD:
                 if left_dist <= right_dist:
-                    target_x = screen.x
+                    target_x = area_x
                 else:
-                    target_x = screen.x + screen.width - width
+                    target_x = area_x + area_width - width
 
             target_y = y
-            top_dist = abs(y - screen.y)
-            bottom_dist = abs((y + height) - (screen.y + screen.height))
+            top_dist = abs(y - area_y)
+            bottom_dist = abs((y + height) - (area_y + area_height))
             if top_dist <= SNAP_THRESHOLD or bottom_dist <= SNAP_THRESHOLD:
                 if top_dist <= bottom_dist:
-                    target_y = screen.y
+                    target_y = area_y
                 else:
-                    target_y = screen.y + screen.height - height
+                    target_y = area_y + area_height - height
 
             if target_x != x or target_y != y:
                 window.move(int(target_x), int(target_y))

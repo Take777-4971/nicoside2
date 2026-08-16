@@ -27,6 +27,66 @@ html, body {
   gap: 6px;
 }
 
+#title-bar {
+  display: flex;
+  align-items: center;
+  /* #appのpaddingを打ち消して、画面の一番上・左右端まで届かせる
+     （ネイティブのタイトルバーらしい見た目にするため） */
+  margin: -8px -8px 0 -8px;
+  padding: 0;
+  background: #1c1c1c;
+  flex-shrink: 0;
+}
+
+#title-bar-drag {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 6px 8px;
+  min-width: 0;
+  /* この要素上でのドラッグでウィンドウが動く（pywebview標準機能、
+     main.py の easy_drag=False + このクラス名の組み合わせで有効になる）。
+     ボタン類はこの要素の外（兄弟要素）に置き、ドラッグ判定に巻き込まれ
+     ないようにしている（pywebviewはクリック位置から祖先要素を辿って
+     .pywebview-drag-region に一致するか判定するため、ボタンをこの
+     要素の内側に置くと、ボタンクリックまでドラッグ扱いされてしまう）。 */
+}
+
+#title-bar-label {
+  font-size: 12px;
+  color: #cccccc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#title-bar-buttons {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 4px 4px 4px 0;
+}
+
+.title-bar-btn {
+  width: 28px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: #cccccc;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.title-bar-btn:hover {
+  background: #3a3a3a;
+}
+.title-bar-btn-close:hover {
+  background: #d9534f;
+  color: #fff;
+}
+
 .row.space-between {
   justify-content: space-between;
 }
