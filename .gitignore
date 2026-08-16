@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+*.pyo
+*.egg
+*.egg-info/
+dist/
+build/
+*.spec
+
+# 仮想環境
+venv/
+env/
+.env/
+.venv/
+
+# 認証情報・機密ファイル（絶対にアップロードしない）
+client_secret.json
+token.json
+nico_session_dev.json
+*.json
+
+# ログファイル
+*.log
+nicoside_debug.log
+
+# WebView キャッシュ
+.webview_data/
+
+# IDE / エディタ
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# PyInstaller
+*.manifest

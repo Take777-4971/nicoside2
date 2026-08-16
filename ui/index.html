@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <!-- ページ全体のReferrer-Policyは既定のまま（何も指定しない）にする。
+       ニコニコ動画埋め込み時のみ no-referrer が必要だが、YouTube側は
+       逆にRefererが無いと再生エラー(153)になることが判明したため、
+       ページ全体には適用せず、#player-frame に対してJS側から動画ごとに
+       個別に referrerPolicy を切り替える方式にしている
+       （playViaIframe / playViaNicoScriptEmbed 内を参照）。 -->
+  <title>NicoSide</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <div class="row">
+      <input id="search-input" type="text" placeholder="検索キーワード" />
+      <button id="search-btn" class="icon-btn" title="検索">🔍</button>
+    </div>
+
+    <div class="row space-between">
+      <span class="source-label">ソース:</span>
+      <select id="provider-select"></select>
+    </div>
+
+    <div class="row space-between" id="sort-row">
+      <span class="source-label">並び替え:</span>
+      <select id="sort-select"></select>
+    </div>
+
+    <div class="row space-between" id="playlist-row">
+      <span class="source-label" id="playlist-row-label">再生リスト:</span>
+      <select id="playlist-select">
+        <option value="">-- 検索結果を表示 --</option>
+      </select>
+      <button id="mylist-add-btn" class="icon-btn hidden" title="マイリストを登録">＋</button>
+      <button id="mylist-remove-btn" class="icon-btn hidden" title="選択中のマイリストを登録解除">🗑</button>
+    </div>
+
+    <div class="row space-between">
+      <div class="size-select-wrap" id="account-btn-wrap">
+        <button id="account-btn" class="icon-btn toggle-btn" title="YouTubeアカウント連携">
+          <span class="toggle-icon">👤</span>
+          <span id="account-state" class="toggle-state">--</span>
+        </button>
+        <div id="account-menu" class="popup-menu align-left hidden">
+          <button class="popup-menu-item" data-action="login">ログイン</button>
+          <button class="popup-menu-item" data-action="logout">ログアウト</button>
+        </div>
+      </div>
+      <div class="size-select-wrap hidden" id="nico-account-btn-wrap">
+        <button id="nico-account-btn" class="icon-btn toggle-btn" title="ニコニコ動画アカウント連携（アプリ終了時に自動的にログアウトされます）">
+          <span class="toggle-icon">🪪</span>
+          <span id="nico-account-state" class="toggle-state">--</span>
+        </button>
+        <div id="nico-account-menu" class="popup-menu align-left hidden">
+          <button class="popup-menu-item" data-action="login">ログイン</button>
+          <button class="popup-menu-item" data-action="logout">ログアウト</button>
+        </div>
+      </div>
+      <div class="size-select-wrap">
+        <button id="pin-btn" class="icon-btn toggle-btn" title="最前面表示の設定">
+          <span class="toggle-icon">📌</span>
+          <span id="pin-state" class="toggle-state">OFF</span>
+        </button>
+        <div id="pin-menu" class="popup-menu hidden">
+          <button class="popup-menu-item" data-mode="off">OFF</button>
+          <button class="popup-menu-item" data-mode="on">常に最前面</button>
+          <button class="popup-menu-item" data-mode="auto">自動的に隠す</button>
+        </div>
+      </div>
+      <div class="size-select-wrap">
+        <button id="repeat-btn" class="icon-btn toggle-btn" title="リピート再生の設定">
+          <span class="toggle-icon">🔁</span>
+          <span id="repeat-state" class="toggle-state">OFF</span>
+        </button>
+        <div id="repeat-menu" class="popup-menu hidden">
+          <button class="popup-menu-item" data-mode="off">リピートしない</button>
+          <button class="popup-menu-item" data-mode="single">🔂 1曲リピート</button>
+          <button class="popup-menu-item" data-mode="list">🔁 リストリピート</button>
+        </div>
+      </div>
+      <div class="size-select-wrap" id="comment-btn-wrap" style="display:none">
+        <button id="comment-btn" class="icon-btn toggle-btn" title="ニコニコ動画のコメント表示">
+          <span class="toggle-icon">💬</span>
+          <span id="comment-state" class="toggle-state">ON</span>
+        </button>
+      </div>
+      <div class="size-select-wrap">
+        <button id="size-btn" class="icon-btn toggle-btn" title="ウィンドウサイズの選択">
+          <span class="toggle-icon">⛶</span>
+          <span id="size-state" class="toggle-state">1x</span>
+        </button>
+        <div id="size-menu" class="popup-menu hidden">
+          <button class="popup-menu-item" data-multiplier="1">x1（最小）</button>
+          <button class="popup-menu-item" data-multiplier="2">x2</button>
+          <button class="popup-menu-item" data-multiplier="3">x3</button>
+        </div>
+      </div>
+    </div>
+
+    <hr />
+
+    <div id="player-container">
+      <span id="player-placeholder">動画を選択して再生</span>
+      <iframe id="player-frame" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+      <div id="yt-player-mount"></div>
+      <div id="nico-script-embed-mount"></div>
+    </div>
+    <div id="nico-watch-external-row" class="row hidden">
+      <a href="#" id="nico-watch-external-link">埋め込みで再生できない場合はこちら → ブラウザでニコニコ動画を開く</a>
+    </div>
+
+    <hr />
+
+    <div id="results-list"></div>
+
+    <div class="row space-between" id="pagination-row">
+      <button id="first-btn" class="icon-btn" title="先頭のページに戻る">|&lt;</button>
+      <button id="prev-btn" class="icon-btn" title="前のページ">&lt; 前へ</button>
+      <span id="page-info" class="source-label"></span>
+      <button id="next-btn" class="icon-btn" title="次のページ">次へ &gt;</button>
+      <button id="last-btn" class="icon-btn" title="末尾のページに進む">&gt;|</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

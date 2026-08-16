@@ -1,0 +1,7 @@
+pywebview==6.2.1
+requests>=2.31.0
+google-auth>=2.29.0
+google-auth-oauthlib>=1.2.0
+
+# Windowsバイナリの作成
+# pyinstaller --noconsole --onefile --add-data "ui;ui" main.py

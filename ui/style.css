@@ -1,0 +1,385 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #121212;
+  color: #ffffff;
+  font-family: "Segoe UI", "Yu Gothic UI", sans-serif;
+  font-size: 13px;
+  user-select: none;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 8px;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.row.space-between {
+  justify-content: space-between;
+}
+
+.hidden {
+  display: none !important;
+}
+
+#nico-watch-external-row {
+  padding: 4px 0;
+  font-size: 11px;
+}
+#nico-watch-external-link {
+  color: #4fc3f7;
+  text-decoration: none;
+  cursor: pointer;
+}
+#nico-watch-external-link:hover {
+  text-decoration: underline;
+}
+
+#search-input {
+  flex: 1;
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+  padding: 6px 8px;
+  font-size: 13px;
+  outline: none;
+}
+
+#search-input:focus {
+  border-color: #4caf50;
+}
+
+button.icon-btn {
+  background: transparent;
+  border: none;
+  color: #cfcfcf;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+button.icon-btn:hover {
+  background: #262626;
+}
+
+/* トグル系ボタン（ピン留め・ウィンドウサイズ）共通の見た目 */
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #333;
+  background: #1c1c1c;
+}
+
+.toggle-icon {
+  font-size: 14px;
+}
+
+.toggle-state {
+  font-size: 10px;
+  font-weight: 700;
+  color: #9a9a9a;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* ピンボタン: モードごとに色を変える */
+#pin-btn.pin-on {
+  background: #ffc107;
+  border-color: #ffc107;
+}
+#pin-btn.pin-on .toggle-state {
+  color: #3a2a00;
+}
+
+#pin-btn.pin-auto {
+  background: #d84315;
+  border-color: #d84315;
+}
+#pin-btn.pin-auto .toggle-state {
+  color: #fff;
+}
+
+#pin-btn:not(.pin-on):not(.pin-auto) .toggle-state {
+  color: #757575;
+}
+
+/* ウィンドウサイズボタン: 倍率に応じて色を変える */
+#size-btn.size-2x {
+  background: #2e7d32;
+  border-color: #2e7d32;
+}
+#size-btn.size-3x {
+  background: #1565c0;
+  border-color: #1565c0;
+}
+#size-btn.size-2x .toggle-state,
+#size-btn.size-3x .toggle-state {
+  color: #fff;
+}
+
+/* リピートボタン: モードごとに色を変える */
+#repeat-btn.repeat-single {
+  background: #6a1b9a;
+  border-color: #6a1b9a;
+}
+#repeat-btn.repeat-list {
+  background: #00838f;
+  border-color: #00838f;
+}
+#repeat-btn.repeat-single .toggle-state,
+#repeat-btn.repeat-list .toggle-state {
+  color: #fff;
+}
+
+/* アカウント連携ボタン */
+#account-btn.logged-in {
+  background: #2e7d32;
+  border-color: #2e7d32;
+}
+#account-btn.logged-in .toggle-state {
+  color: #fff;
+}
+#nico-account-btn.logged-in {
+  background: #2e7d32;
+  border-color: #2e7d32;
+}
+#nico-account-btn.logged-in .toggle-state {
+  color: #fff;
+}
+
+/* コメント表示トグルボタン（ニコニコ動画専用） */
+#comment-btn.comment-on {
+  background: #2e7d32;
+  border-color: #2e7d32;
+}
+#comment-btn.comment-on .toggle-state {
+  color: #fff;
+}
+#comment-btn:not(.comment-on) .toggle-state {
+  color: #757575;
+}
+
+/* サイズ選択のポップアップメニュー */
+.size-select-wrap {
+  position: relative;
+}
+
+.popup-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #1c1c1c;
+  border: 1px solid #333;
+  border-radius: 6px;
+  overflow: hidden;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* アカウントボタンは行の一番左にあるため、他のボタン(行の右寄り)と
+   同じ right:0（右端合わせ＝左方向に展開）だと、ウィンドウの左端より
+   外側にメニューがはみ出してしまう。左端合わせ（右方向に展開）に変更。 */
+.popup-menu.align-left {
+  right: auto;
+  left: 0;
+}
+
+.popup-menu.hidden {
+  display: none;
+}
+
+.popup-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 14px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.popup-menu-item:hover {
+  background: #2a2a2a;
+}
+
+.popup-menu-item.active {
+  color: #ffc107;
+  font-weight: 700;
+}
+
+#provider-select,
+#playlist-select {
+  background: #1e1e1e;
+  color: #fff;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+#playlist-row.hidden {
+  display: none;
+}
+
+.source-label {
+  font-size: 12px;
+  color: #9a9a9a;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #2a2a2a;
+  margin: 0;
+  width: 100%;
+}
+
+#player-container {
+  position: relative;
+  height: 200px;
+  min-height: 120px;
+  background: #000;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+#player-placeholder {
+  color: #757575;
+  font-size: 12px;
+}
+
+#player-frame {
+  display: none;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+#yt-player-mount {
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+
+#yt-player-mount iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+#nico-script-embed-mount {
+  display: none;
+  width: 100%;
+  height: 100%;
+}
+
+/* ニコニコ公式の埋め込みscriptタグが生成するiframeを、コンテナ幅いっぱいに広げる */
+#nico-script-embed-mount iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: none;
+}
+
+#results-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#pagination-row {
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+#pagination-row button {
+  font-size: 11px;
+}
+
+#pagination-row button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+#page-info {
+  white-space: nowrap;
+}
+
+.result-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  background: #1c1c1c;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.result-item:hover {
+  background: #262626;
+}
+
+.result-item.disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.result-item.disabled:hover {
+  background: #1c1c1c;
+}
+
+.result-item .thumb {
+  width: 80px;
+  height: 45px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #333;
+  flex-shrink: 0;
+}
+
+.result-item .meta {
+  min-width: 0;
+}
+
+.result-item .title {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.result-item .source {
+  font-size: 10px;
+  color: #9a9a9a;
+  margin-top: 2px;
+}
