@@ -8,7 +8,6 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-*.spec
 
 # 仮想環境
 venv/
